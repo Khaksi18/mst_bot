@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
@@ -6,16 +5,18 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from collections import defaultdict
 
-TOKEN = "7799042115:AAHNwPFpyNbRsRJ5A_h-_CG_LkgV2ZeqMHc"
+# Токен бота
+TOKEN = '7610179148:AAG1N5KvSPiabVe01bsEnrpC73X8DQ-uvPY'
 logging.basicConfig(level=logging.INFO)
 
+# Создаем бота и диспетчер
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-user_data = defaultdict(lambda: {'score': 0, 'current_question': 0, 'active': False})
+user_data = defaultdict(lambda: {'score': 0, 'current_question': 0})
 
+# Вопросы и ответы
 questions = [
-
-    {
+       {
         "question": "Во время работы должна быть налажена взаимосвязь:",
         "options": ['с дис. Общ. 40-06; с пож. охр. 512-35-07; с газоспас. служ. 37-04; со скор. пом. (здр.п. №1) 38-03; с ООО НОП Сибирь ТНХ 34-61', 'с дис. Общ. 40-06; с газоспас. служ. 37-04; со скор. пом. (здр.п. №1) 38-03; с ООО НОП Сибирь ТНХ 34-61', 'с дис. Общ. 40-06; с пож. охр. 512-35-07; со скор. пом. (здр.п. №1) 38-03; с ООО НОП Сибирь ТНХ 34-61', 'с дис. Общ. 40-06; с пож. охр. 512-35-07; с газ. служ. 37-04; с ООО НОП Сибирь ТНХ 34-61'],
         "answer": 'с дис. Общ. 40-06; с пож. охр. 512-35-07; с газоспас. служ. 37-04; со скор. пом. (здр.п. №1) 38-03; с ООО НОП Сибирь ТНХ 34-61'
@@ -1967,32 +1968,44 @@ questions = [
     }
 ]
 
-
+# Функция создания клавиатуры
 def create_keyboard(options):
-    """Создание клавиатуры с вариантами ответов"""
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=option)] for option in options],
+        resize_keyboard=True
     )
-
 
 @dp.message(Command("start"))
 async def start_quiz(message: types.Message):
+    """Обработчик команды /start"""
     chat_id = message.chat.id
+    user_data[chat_id] = {'score': 0, 'current_question': 0}
 
-    if not user_data[chat_id]['active']:
-        user_data[chat_id] = {'score': 0, 'current_question': 0, 'active': True}
+    welcome_text = (
+        "🎉 *Добро пожаловать в викторину!* 🎉\n\n"
+        "📌 Вам будет задано несколько вопросов, выберите правильный ответ из предложенных вариантов.\n"
+        "📝 В конце узнаете свой результат!\n\n"
+        "Нажмите *Старт*, чтобы начать ⬇️"
+    )
 
-    await send_question(chat_id)
+    markup = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Старт ✅")]],
+    )
 
+    await bot.send_message(chat_id, welcome_text, reply_markup=markup)
+
+@dp.message(lambda message: message.text == "Старт ✅")
+async def start_test(message: types.Message):
+    """Начало теста"""
+    await send_question(message.chat.id)
 
 async def send_question(chat_id):
-    """Отправка вопроса с сохранением клавиатуры"""
+    """Отправка следующего вопроса"""
     current_question_index = user_data[chat_id]['current_question']
 
     if current_question_index >= len(questions):
-        await bot.send_message(chat_id,
-                               f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
-        user_data[chat_id]['active'] = False
+        await bot.send_message(chat_id, f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
+        user_data.pop(chat_id, None)
         return
 
     question_data = questions[current_question_index]
@@ -2000,19 +2013,22 @@ async def send_question(chat_id):
 
     await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
 
-
 @dp.message()
 async def answer_question(message: types.Message):
-    """Обработка ответа без удаления кнопок"""
+    """Обработка ответа пользователя"""
     chat_id = message.chat.id
-
-    if not user_data[chat_id]['active']:
-        return
+    if chat_id not in user_data:
+        return  # Убрали ненужные ответы типа "Начните тест командой"
 
     current_question_index = user_data[chat_id]['current_question']
+
+    if current_question_index >= len(questions):
+        return  # Избегаем повторной отправки завершения теста
+
     question_data = questions[current_question_index]
 
-    if message.text.strip() == question_data['answer']:
+    # Проверка ответа
+    if message.text.strip().lower() == question_data['answer'].strip().lower():
         user_data[chat_id]['score'] += 1
         await message.answer("✅ *Правильно!*")
     else:
@@ -2021,10 +2037,9 @@ async def answer_question(message: types.Message):
     user_data[chat_id]['current_question'] += 1
     await send_question(chat_id)
 
-
 async def main():
-    await dp.start_polling(bot, skip_updates=True)
-
+    """Запуск бота"""
+    await dp.run_polling(bot)  # Исправлено: используем run_polling, чтобы избежать повторных запусков
 
 if __name__ == "__main__":
     asyncio.run(main())
