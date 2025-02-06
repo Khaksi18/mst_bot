@@ -2015,6 +2015,40 @@ async def send_question(chat_id):
     except Exception as e:
         logging.error(f"Ошибка при отправке вопроса: {e}")
         await bot.send_message(chat_id, "⚠️ Ошибка! Попробуйте снова.")
+        
+@dp.message()
+async def answer_question(message: types.Message):
+    try:
+        chat_id = message.chat.id
+        if chat_id not in user_data:
+            await message.answer("📌 Пожалуйста, начните тест командой /start")
+            return
+
+        current_question_index = user_data[chat_id]['current_question']
+        if current_question_index >= len(questions):
+            await message.answer(f"✅ Тест уже завершён! Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
+            return
+
+        question_data = questions[current_question_index]
+
+        if message.text.strip().lower() == question_data['answer'].strip().lower():
+            user_data[chat_id]['score'] += 1
+            await message.answer("✅ *Правильно!*", reply_markup=types.ReplyKeyboardRemove())
+        else:
+            await message.answer(f"❌ *Неправильно!* Правильный ответ: *{question_data['answer']}*",
+                                 reply_markup=types.ReplyKeyboardRemove())
+
+        user_data[chat_id]['current_question'] += 1
+
+        if user_data[chat_id]['current_question'] < len(questions):
+            await send_question(chat_id)
+        else:
+            await message.answer(f"🎉 *Тест завершён!* \n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
+            user_data.pop(chat_id, None)
+
+    except Exception as e:
+        logging.error(f"Ошибка при обработке ответа: {e}")
+        await message.answer("⚠️ Ошибка обработки ответа.")
 
 async def main():
     await dp.start_polling(bot)
