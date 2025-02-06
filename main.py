@@ -8,7 +8,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from collections import defaultdict
 # Замените 'YOUR_API_TOKEN' на токен вашего бота
-TOKEN = '7830539841:AAFsTbdBjNM_iAPeb8MSGsPGBCHV2gCNIIc'
+TOKEN = '7799042115:AAHNwPFpyNbRsRJ5A_h-_CG_LkgV2ZeqMHc'
 logging.basicConfig(level=logging.INFO)
 
 # Создаем бота и диспетчер
