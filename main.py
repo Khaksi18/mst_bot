@@ -1970,25 +1970,10 @@ questions = [
 @dp.message(Command("start"))
 async def start_quiz(message: types.Message):
     chat_id = message.chat.id
-
-    if chat_id in user_data and user_data[chat_id]['current_question'] < len(questions):
-        markup = ReplyKeyboardMarkup(
-            keyboard=[[KeyboardButton(text="Продолжить ▶️")]],
-            resize_keyboard=True
-        )
-        await message.answer("Вы уже начали тест. Хотите продолжить?", reply_markup=markup)
-    else:
-        user_data[chat_id] = {'score': 0, 'current_question': 0}
-        await send_question(chat_id)
-
-@dp.message(lambda message: message.text == "Продолжить ▶️")
-async def process_continue(message: types.Message):
-    await send_question(message.chat.id)
+    user_data[chat_id] = {'score': 0, 'current_question': 0}
+    await send_question(chat_id)
 
 async def send_question(chat_id):
-    if chat_id not in user_data:
-        return
-
     current_question_index = user_data[chat_id]['current_question']
 
     if current_question_index >= len(questions):
@@ -2008,14 +1993,7 @@ async def send_question(chat_id):
 @dp.message()
 async def answer_question(message: types.Message):
     chat_id = message.chat.id
-    if chat_id not in user_data:
-        await message.answer("📌 Начните тест командой /start")
-        return
-
     current_question_index = user_data[chat_id]['current_question']
-    if current_question_index >= len(questions):
-        await message.answer(f"✅ Тест уже завершён! Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
-        return
 
     question_data = questions[current_question_index]
 
