@@ -1994,8 +1994,6 @@ async def send_question(chat_id):
 
     markup = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=option)] for option in question_data['options']],
-        resize_keyboard=True,
-        one_time_keyboard=True
     )
 
     await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
