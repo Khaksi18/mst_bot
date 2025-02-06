@@ -1972,7 +1972,6 @@ questions = [
 async def start_quiz(message: types.Message):
     chat_id = message.chat.id
 
-    # Проверяем, не запущен ли уже тест
     if user_data[chat_id]['active']:
         await message.answer("❗ Вы уже начали тест.")
         return
@@ -1988,13 +1987,15 @@ async def send_question(chat_id):
         await bot.send_message(chat_id,
                                f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*",
                                reply_markup=types.ReplyKeyboardRemove())
-        user_data[chat_id]['active'] = False  # Завершаем тест
+        user_data[chat_id]['active'] = False
         return
 
     question_data = questions[current_question_index]
 
     markup = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=option)] for option in question_data['options']],
+        resize_keyboard=True,
+        one_time_keyboard=True
     )
 
     await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
@@ -2004,7 +2005,6 @@ async def send_question(chat_id):
 async def answer_question(message: types.Message):
     chat_id = message.chat.id
 
-    # Если тест не активен — игнорируем ответы
     if not user_data[chat_id]['active']:
         return
 
@@ -2013,9 +2013,10 @@ async def answer_question(message: types.Message):
 
     if message.text.strip() == question_data['answer']:
         user_data[chat_id]['score'] += 1
-        await message.answer("✅ *Правильно!*")
+        await message.answer("✅ *Правильно!*", reply_markup=types.ReplyKeyboardRemove())
     else:
-        await message.answer(f"❌ *Неправильно!* Правильный ответ: *{question_data['answer']}*")
+        await message.answer(f"❌ *Неправильно!* Правильный ответ: *{question_data['answer']}*",
+                             reply_markup=types.ReplyKeyboardRemove())
 
     user_data[chat_id]['current_question'] += 1
     await send_question(chat_id)
