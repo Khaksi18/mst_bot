@@ -1,5 +1,4 @@
-telebot
+pyTelegramBotAPI
+aiogram
 asyncio
 logging
-aiograms
-collections  
