@@ -1977,7 +1977,7 @@ async def start_quiz(message: types.Message):
         return
 
     user_data[chat_id] = {'score': 0, 'current_question': 0, 'active': True}
-    await send_question(chat_id)
+    asyncio.create_task(send_question(chat_id))  # Запускаем без ожидания
 
 
 async def send_question(chat_id):
@@ -2017,11 +2017,11 @@ async def answer_question(message: types.Message):
                              reply_markup=types.ReplyKeyboardRemove())
 
     user_data[chat_id]['current_question'] += 1
-    await send_question(chat_id)
+    asyncio.create_task(send_question(chat_id))  # Запускаем следующий вопрос сразу
 
 
 async def main():
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, skip_updates=True)  # Пропускаем старые сообщения
 
 
 if __name__ == "__main__":
