@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
-user_data = defaultdict(lambda: {'score': 0, 'current_question': 0})
+user_data = defaultdict(lambda: {'score': 0, 'current_question': 0, 'active': False})
 
 questions = [
     {
@@ -1967,19 +1967,28 @@ questions = [
     }
 ]
 
+
 @dp.message(Command("start"))
 async def start_quiz(message: types.Message):
     chat_id = message.chat.id
-    user_data[chat_id] = {'score': 0, 'current_question': 0}
+
+    # Проверяем, не запущен ли уже тест
+    if user_data[chat_id]['active']:
+        await message.answer("❗ Вы уже начали тест.")
+        return
+
+    user_data[chat_id] = {'score': 0, 'current_question': 0, 'active': True}
     await send_question(chat_id)
+
 
 async def send_question(chat_id):
     current_question_index = user_data[chat_id]['current_question']
 
     if current_question_index >= len(questions):
-        await bot.send_message(chat_id, f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*",
+        await bot.send_message(chat_id,
+                               f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*",
                                reply_markup=types.ReplyKeyboardRemove())
-        user_data.pop(chat_id, None)
+        user_data[chat_id]['active'] = False  # Завершаем тест
         return
 
     question_data = questions[current_question_index]
@@ -1990,11 +1999,16 @@ async def send_question(chat_id):
 
     await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
 
+
 @dp.message()
 async def answer_question(message: types.Message):
     chat_id = message.chat.id
-    current_question_index = user_data[chat_id]['current_question']
 
+    # Если тест не активен — игнорируем ответы
+    if not user_data[chat_id]['active']:
+        return
+
+    current_question_index = user_data[chat_id]['current_question']
     question_data = questions[current_question_index]
 
     if message.text.strip() == question_data['answer']:
@@ -2006,8 +2020,10 @@ async def answer_question(message: types.Message):
     user_data[chat_id]['current_question'] += 1
     await send_question(chat_id)
 
+
 async def main():
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
