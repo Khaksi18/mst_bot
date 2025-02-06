@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
-import telebot
-from telebot import types
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
+from aiogram.fsm.storage.memory import MemoryStorage
 from collections import defaultdict
-# Замените 'YOUR_API_TOKEN' на токен вашего бота
-TOKEN = '7799042115:AAHNwPFpyNbRsRJ5A_h-_CG_LkgV2ZeqMHc'
+
+TOKEN = "7799042115:AAHNwPFpyNbRsRJ5A_h-_CG_LkgV2ZeqMHc"
 logging.basicConfig(level=logging.INFO)
 
-# Создаем бота и диспетчер
 bot = Bot(token=TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 user_data = defaultdict(lambda: {'score': 0, 'current_question': 0})
-# Вопросы и ответы
+
 questions = [
     {
         "question": "Во время работы должна быть налажена взаимосвязь:",
@@ -1972,83 +1970,63 @@ questions = [
 @dp.message(Command("start"))
 async def start_quiz(message: types.Message):
     chat_id = message.chat.id
-    user_data[chat_id] = {'score': 0, 'current_question': 0}
 
-    welcome_text = (
-        "🎉 *Добро пожаловать в викторину!* 🎉\n\n"
-        "📌 Вам будет задано несколько вопросов, выберите правильный ответ из предложенных вариантов.\n"
-        "📝 В конце узнаете свой результат!\n\n"
-        "Нажмите *Старт*, чтобы начать ⬇️"
-    )
+    if chat_id in user_data and user_data[chat_id]['current_question'] < len(questions):
+        markup = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="Продолжить ▶️")]],
+            resize_keyboard=True
+        )
+        await message.answer("Вы уже начали тест. Хотите продолжить?", reply_markup=markup)
+    else:
+        user_data[chat_id] = {'score': 0, 'current_question': 0}
+        await send_question(chat_id)
 
-    markup = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Старт ✅")]],
-        resize_keyboard=True
-    )
-
-    await bot.send_message(chat_id, welcome_text, reply_markup=markup)
-
-@dp.message(lambda message: message.text == "Старт ✅")
-async def start_test(message: types.Message):
+@dp.message(lambda message: message.text == "Продолжить ▶️")
+async def process_continue(message: types.Message):
     await send_question(message.chat.id)
 
 async def send_question(chat_id):
-    try:
-        current_question_index = user_data[chat_id]['current_question']
+    if chat_id not in user_data:
+        return
 
-        if current_question_index >= len(questions):
-            await bot.send_message(chat_id, f"🎉 *Тест завершён*\n"
-                                            f"📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
-            user_data.pop(chat_id, None)
-            return
+    current_question_index = user_data[chat_id]['current_question']
 
-        question_data = questions[current_question_index]
+    if current_question_index >= len(questions):
+        await bot.send_message(chat_id, f"🎉 *Тест завершён!*\n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*",
+                               reply_markup=types.ReplyKeyboardRemove())
+        user_data.pop(chat_id, None)
+        return
 
-        buttons = [KeyboardButton(text=option) for option in question_data['options']]
-        markup = ReplyKeyboardMarkup(
-            keyboard=[buttons[i:i + 1] for i in range(0, len(buttons), 1)],
-            resize_keyboard=False
-        )
+    question_data = questions[current_question_index]
 
-        await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
+    markup = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=option)] for option in question_data['options']],
+    )
 
-    except Exception as e:
-        logging.error(f"Ошибка при отправке вопроса: {e}")
-        await bot.send_message(chat_id, "⚠️ Ошибка! Попробуйте снова.")
+    await bot.send_message(chat_id, f"❓ *{question_data['question']}*", reply_markup=markup)
 
 @dp.message()
 async def answer_question(message: types.Message):
-    try:
-        chat_id = message.chat.id
-        if chat_id not in user_data:
-            await message.answer("📌 Пожалуйста, начните тест командой /start")
-            return
+    chat_id = message.chat.id
+    if chat_id not in user_data:
+        await message.answer("📌 Начните тест командой /start")
+        return
 
-        current_question_index = user_data[chat_id]['current_question']
-        if current_question_index >= len(questions):
-            await message.answer(f"✅ Тест уже завершён! Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
-            return
+    current_question_index = user_data[chat_id]['current_question']
+    if current_question_index >= len(questions):
+        await message.answer(f"✅ Тест уже завершён! Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
+        return
 
-        question_data = questions[current_question_index]
+    question_data = questions[current_question_index]
 
-        if message.text.strip().lower() == question_data['answer'].strip().lower():
-            user_data[chat_id]['score'] += 1
-            await message.answer("✅ *Правильно!*", reply_markup=types.ReplyKeyboardRemove())
-        else:
-            await message.answer(f"❌ *Неправильно!* Правильный ответ: *{question_data['answer']}*",
-                                 reply_markup=types.ReplyKeyboardRemove())
+    if message.text.strip() == question_data['answer']:
+        user_data[chat_id]['score'] += 1
+        await message.answer("✅ *Правильно!*")
+    else:
+        await message.answer(f"❌ *Неправильно!* Правильный ответ: *{question_data['answer']}*")
 
-        user_data[chat_id]['current_question'] += 1
-
-        if user_data[chat_id]['current_question'] < len(questions):
-            await send_question(chat_id)
-        else:
-            await message.answer(f"🎉 *Тест завершён!* \n📊 Ваш результат: *{user_data[chat_id]['score']}* из *{len(questions)}*")
-            user_data.pop(chat_id, None)
-
-    except Exception as e:
-        logging.error(f"Ошибка при обработке ответа: {e}")
-        await message.answer("⚠️ Ошибка обработки ответа.")
+    user_data[chat_id]['current_question'] += 1
+    await send_question(chat_id)
 
 async def main():
     await dp.start_polling(bot)
