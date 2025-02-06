@@ -8,7 +8,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from collections import defaultdict
 # Замените 'YOUR_API_TOKEN' на токен вашего бота
-TOKEN = '7799042115:AAHNwPFpyNbRsRJ5A_h-_CG_LkgV2ZeqMHc'
+TOKEN = '7830539841:AAFsTbdBjNM_iAPeb8MSGsPGBCHV2gCNIIc'
 logging.basicConfig(level=logging.INFO)
 
 # Создаем бота и диспетчер
@@ -2015,7 +2015,7 @@ async def send_question(chat_id):
     except Exception as e:
         logging.error(f"Ошибка при отправке вопроса: {e}")
         await bot.send_message(chat_id, "⚠️ Ошибка! Попробуйте снова.")
-        
+
 @dp.message()
 async def answer_question(message: types.Message):
     try:
